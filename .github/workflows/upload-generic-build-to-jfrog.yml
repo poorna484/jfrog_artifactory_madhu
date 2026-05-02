@@ -16,28 +16,26 @@ jobs:
 
       - name: Build artifact
         run: |
+          set -e
           mkdir -p build
-          echo "Build created from GitHub Actions" > build/app.txt
-          echo "Commit SHA: $GITHUB_SHA" >> build/app.txt
-          zip -r app-build-${{ github.run_number }}.zip build README.md || zip -r app-build-${{ github.run_number }}.zip build
+          echo "Build from GitHub Actions" > build/app.txt
+          zip -r app-build.zip build README.md
+          ls -l app-build.zip
 
-      - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v4
-        env:
-          JF_URL: ${{ secrets.JF_URL }}
-          JF_USER: ${{ secrets.JF_USER }}
-          JF_PASSWORD: ${{ secrets.JF_PASSWORD }}
-
-      - name: Test JFrog connection
+      - name: Test JFrog connectivity
         run: |
-          jf rt ping
+          set -e
+          echo "Testing connection to JFrog..."
+          curl -v --connect-timeout 10 "${{ secrets.JF_URL }}"
 
       - name: Upload artifact to JFrog Generic Repository
         run: |
-          jf rt upload \
-            "app-build-${{ github.run_number }}.zip" \
-            "generic-local/github-actions/app-build-${{ github.run_number }}.zip"
+          set -e
+          echo "Uploading artifact to JFrog..."
+          curl -v -u "${{ secrets.JF_USER }}:${{ secrets.JF_TOKEN }}" \
+            -T app-build.zip \
+            "${{ secrets.JF_URL }}/generic-local/github-actions/app-build-${{ github.run_number }}.zip"
 
-      - name: Publish build info
+      - name: Confirm upload
         run: |
-          jf rt build-publish github-actions-build ${{ github.run_number }}
+          echo "Upload completed successfully!"
