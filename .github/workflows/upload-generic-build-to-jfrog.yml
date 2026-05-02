@@ -1,0 +1,44 @@
+name: Upload Generic Build to JFrog Artifactory
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build artifact
+        run: |
+          mkdir -p build
+          echo "Build created from GitHub Actions" > build/app.txt
+          echo "Commit SHA: $GITHUB_SHA" >> build/app.txt
+          zip -r app-build-${{ github.run_number }}.zip build README.md || zip -r app-build-${{ github.run_number }}.zip build
+
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ secrets.JF_URL }}
+          JF_USER: ${{ secrets.JF_USER }}
+          JF_PASSWORD: ${{ secrets.JF_TOKEN }}
+
+      - name: Test JFrog connection
+        run: |
+          jf rt ping
+
+      - name: Upload artifact to JFrog Generic Repository
+        run: |
+          jf rt upload \
+            "app-build-${{ github.run_number }}.zip" \
+            "generic-local/github-actions/app-build-${{ github.run_number }}.zip"
+
+      - name: Publish build info
+        run: |
+          jf rt build-publish github-actions-build ${{ github.run_number }}
